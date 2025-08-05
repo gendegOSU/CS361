@@ -2,6 +2,7 @@ import json
 import keyboard
 import datetime
 import csv
+import zmq
 
 welcome = """
 Welcome to CollectionDB! Please make a selection from the options below:"""
@@ -11,6 +12,7 @@ mainMenu = """\n === Main Menu ===
   (W) – View List with Date/Comments    - Shows all information on each item
   (A) – Add Collectable                 - Enter a new item to be tracked
   (C) - Add Collectable(s) from .csv    - Adds item(s) from a .csv file
+  (E) - Export Collection to .csv       - Exports collection to a .csv file
   (D) – Delete Collectable              – Removes an item from the list
   (U) – Undo Last Delete                - Restores the last item deleted
   (Q) - Quit/Exit                       - Exits the collection tracker
@@ -24,7 +26,7 @@ class CollectionList:
         self.values = json.loads(values)
         self.delete_backup = None
 
-    def get_str(self) -> str:
+    def get_json_str(self) -> str:
         return json.dumps(self.values)
 
 
@@ -147,7 +149,7 @@ def add_collectable(collection):
     if verify == "y" or verify == "yes":
         collection.values.update(new_item)
         with open("data", 'w') as file:
-            file.write(collection.get_str())
+            file.write(collection.get_json_str())
         print("*** " + name + " added! ***")
     else:
         print("*** " + name + " NOT added! ***")
@@ -172,7 +174,7 @@ def import_collectables(collection):
     if verify == "y" or verify == "yes":
         collection.values.update(new_items)
         with open("data", 'w') as file:
-            file.write(collection.get_str())
+            file.write(collection.get_json_str())
         print("*** New items were imported! ***")
     else:
         print("*** New items were NOT imported! ***")
@@ -193,13 +195,34 @@ def delete_collectable(collection):
             collection.delete_backup = item
             del collection.values[name]
             with open("data", 'w') as file:
-                file.write(collection.get_str())
+                file.write(collection.get_json_str())
             print("*** " + name + " deleted! ***")
         else:
             print("*** " + name + " NOT deleted! ***")
 
     else:
         print(name + " not found in the collection list.")
+
+def export_collection(values):
+    print("What should the csv file be named?")
+    filename = input("  ")
+
+    if filename[-4:].lower() != ".csv":
+        filename += ".csv"
+    filename = "../exports/" + filename
+
+    export_data = [filename, values]
+
+    context = zmq.Context()
+    server = context.socket(zmq.REQ)
+    server.connect("tcp://localhost:5361")
+
+    server.send_json(export_data)
+    response = server.recv_string()
+    print(response)
+
+    server.close()
+
 
 def undo_delete(collection):
     if collection.delete_backup is not None:
@@ -212,7 +235,7 @@ def undo_delete(collection):
         if verify == "y" or verify == "yes":
             collection.values.update(collection.delete_backup)
             with open("data", 'w') as file:
-                file.write(collection.get_str())
+                file.write(collection.get_json_str())
             collection.delete_backup = None
             print("*** " + name + " restored! ***")
         else:
@@ -242,6 +265,8 @@ if __name__ == '__main__':
             add_collectable(collection)
         elif userInput == "c":
             import_collectables(collection)
+        elif userInput == "e":
+            export_collection(collection.values)
         elif userInput == "d":
             delete_collectable(collection)
         elif userInput == "u":
