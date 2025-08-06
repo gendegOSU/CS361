@@ -47,7 +47,7 @@ def run_microservice_a_export_csv() -> None:
 
             # Write data to file in CSV format on local machine, functionally exporting it to CSV - uses CSV import
             with open(filename, mode="w", newline='', encoding='utf-8') as exported_csv_file:
-                headers = ["name", "type", "added", "comment"]
+                headers = ["Name", "Type", "Date Added", "Comment"]
                 row_writer = csv.writer(exported_csv_file)
                 row_writer.writerow(headers)
 
